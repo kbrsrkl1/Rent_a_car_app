@@ -4,7 +4,7 @@ from rest_framework.viewsets import ModelViewSet
 from .models import Car,Reservation
 from .serializers import CarSerializer
 from .permissions import IsStaffOrReadOnly
-# Create your views here.
+from django.db.models import Q, Exists, OuterRef
 
 
 class CarView(ModelViewSet):
@@ -22,22 +22,20 @@ class CarView(ModelViewSet):
 
         if start is not None or end is not None:
 
-            # not_available = Reservation.objects.filter(
-            #     start_date__lt=end, end_date__gt=start
-            # ).values_list('car_id', flat=True)  # [1, 2]
+                not_available = Reservation.objects.filter(
+                    start_date__lt=end, end_date__gt=start
+                ).values_list('car_id', flat=True)  # [1, 2]      
+                not_available = Reservation.objects.filter(
+                    Q(start_date__lt=end) & Q(end_date__gt=start)
+                ).values_list('car_id', flat=True)  # [1, 2]      
+                queryset = queryset.exclude(id__in=not_available)
 
-            # not_available = Reservation.objects.filter(
-            #     Q(start_date__lt=end) & Q(end_date__gt=start)
-            # ).values_list('car_id', flat=True)  # [1, 2]
-
-            # queryset = queryset.exclude(id__in=not_available)
-
-            queryset = queryset.annotate(
-                is_available=~lexists(Reservation.objects.filter(
-                    Q(car=OuterRef('pk')) & Q(
-                        start_date__lt=end) & Q(end_date__gt=start)
-                ))
-            )
+            #queryset = queryset.annotate(
+            #    is_available=~lexists(Reservation.objects.filter(
+            #        Q(car=OuterRef('pk')) & Q(
+            #            start_date__lt=end) & Q(end_date__gt=start)
+            #    ))
+            #)
 
         return queryset
 
